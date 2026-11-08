@@ -26,7 +26,8 @@ scripts/
 
 | Studio class | File name |
 |---|---|
-| `Script` | `Name.server.luau` |
+| `Script` (RunContext Legacy or Server) | `Name.server.luau` |
+| `Script` with RunContext = Client | `Name.client.luau` (e.g. `Simulation/ClientLoader`, which must run from ReplicatedStorage) |
 | `LocalScript` | `Name.client.luau` |
 | `ModuleScript` | `Name.luau` |
 | Any script that has children | a folder `Name/` with the script itself in `init.luau` / `init.server.luau` / `init.client.luau` |

@@ -390,6 +390,7 @@ Each milestone ends with: what was built, files changed, what I tested, what's u
 | # | Milestone | Done when |
 |---|---|---|
 | **0** | **Server Authority spike** (throwaway) | Puck + one constraint-driven stick + simple skater under SA. With `rbx-network-simulator` at 100 ms: prediction success rate measured, stick and puck look stable. **Go/no-go on SA.** |
+| **0b** | **Deterministic blade-puck contact** | Added after the Milestone 0 results (`docs/MILESTONE_0_SPIKE.md`). Scripted shot gives the same result on client and server at 0 and 110 ms. |
 | 1 | Rink + puck | Ice, boards, goals, puck. Puck glides, bounces off boards believably, never tunnels at max speed. |
 | 2 | Skater + first-person camera | Momentum skating: W thrust with accel curve, S slow down/skate backwards, C hard stop, A/D turn, glide/edge grip, Ctrl carve with crouch, Shift sprint and Space jump on a shared stamina bar. Camera with pitch offset, FOV/sensitivity settings, RMB free-look, hold-LMB puck tracking. |
 | 3 | Stick (aim + reach + blade angle) | Visible stick follows mouse in an arc, lifts at full reach, scroll opens/closes the blade, collides with boards and puck. |
