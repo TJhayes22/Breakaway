@@ -10,7 +10,8 @@
 --   aim.X in [-1, 1] -> angle around the skater (left arc .. right arc)
 --   aim.Y in [0, LiftStart] -> reach (ReachMin .. ReachMax)
 --   aim.Y above LiftStart -> blade lifts off the ice (up to LiftMax)
--- Blade frame: X = long axis (points radially outward), Z = face normal (tangent to the arc).
+-- Blade frame: X = long axis, pointing away from the hands (so the shaft always runs back
+-- toward the player's hands), Z = face normal.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Config)
@@ -38,11 +39,24 @@ function StickSim.computeTarget(rootPosition: Vector3, heading: number, aim: Vec
 	local y = iceY + halfExtent + C.IceClearance + lift
 
 	local yaw = CFrame.Angles(0, heading, 0)
-	local radial = yaw:VectorToWorldSpace(Vector3.new(math.sin(theta), 0, -math.cos(theta)))
-	local flat = rootPosition + radial * reach
+	-- Local blade position (X right, -Z forward), pushed out to MinBladeForward if it would
+	-- otherwise slip under the camera.
+	local localX = math.sin(theta) * reach
+	local localZ = math.min(-math.cos(theta) * reach, -C.MinBladeForward)
+	local radial = yaw:VectorToWorldSpace(Vector3.new(localX, 0, localZ).Unit)
+	local flat = rootPosition + yaw:VectorToWorldSpace(Vector3.new(localX, 0, localZ))
 	local position = Vector3.new(flat.X, y, flat.Z)
 
-	return CFrame.fromMatrix(position, radial, Vector3.yAxis) * CFrame.Angles(alpha, 0, 0)
+	-- Point the blade (and therefore the shaft) along the line from the hands to the blade.
+	local hand = C.HandOffset
+	if C.Handedness ~= "Left" then
+		hand = Vector3.new(-hand.X, hand.Y, hand.Z)
+	end
+	local handWorld = rootPosition + yaw:VectorToWorldSpace(hand)
+	local along = Vector3.new(flat.X - handWorld.X, 0, flat.Z - handWorld.Z)
+	local xAxis = if along.Magnitude > 0.1 then along.Unit else radial
+
+	return CFrame.fromMatrix(position, xAxis, Vector3.yAxis) * CFrame.Angles(alpha, 0, 0)
 end
 
 local function clampMagnitude(v: Vector3, max: number): Vector3

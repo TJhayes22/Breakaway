@@ -21,8 +21,8 @@ local STEPS = Config.Stick.BladeAngleSteps
 local sensX = Config.Input.StickSensitivityX
 local sensY = Config.Input.StickSensitivityY
 
--- Start with the blade out front on the forehand side.
-local aim = Vector2.new(if Config.Stick.Handedness == "Left" then -0.3 else 0.3, 0.45)
+-- Start with the stick centered, blade straight out in front.
+local aim = Vector2.new(0, 0.5)
 local bladeSteps = 0
 
 aimBinding:Fire(aim)

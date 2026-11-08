@@ -10,14 +10,16 @@ Config.Skater = {
 	BodyDensity = 0.7,
 	EyeHeight = 2.3, -- above body center
 
-	MaxSpeed = 30, -- cruise top speed (~9 m/s)
+	MaxSpeed = 25, -- cruise top speed (~7.5 m/s). Was 30: "too fast" (M0 playtest)
 	ForwardAccel = 26, -- accel at rest; tapers linearly to 0 at MaxSpeed
-	BrakeDecel = 45, -- S while moving forward
-	BackwardMaxSpeed = 12,
+	BrakeDecel = 30, -- S while moving forward, at full strength. Was 45: too abrupt
+	BrakeRampTime = 0.25, -- brake force eases in over this long, so stops feel smoother
+	BackwardMaxSpeed = 10,
 	BackwardAccel = 16,
 	GlideDecel = 1.2, -- coasting loss per second
 
-	TurnRate = math.rad(150), -- A/D yaw rate (rad/s)
+	TurnRate = math.rad(150), -- A/D max yaw rate (rad/s)
+	TurnAccel = math.rad(700), -- how fast the yaw rate builds/decays (rad/s^2); ~0.2 s to full turn. Was instant
 	EdgeGrip = 6, -- how fast sideways velocity bleeds off (1/s); this is what makes it feel like skates
 	CarveEfficiency = 0.6, -- share of bled-off sideways speed that is redirected forward
 
@@ -27,18 +29,29 @@ Config.Skater = {
 Config.Stick = {
 	Handedness = "Left", -- "Left" shot: blade sits on the player's left; forehand sweeps left -> right
 
-	-- Aim arc (radians from straight ahead; positive = to the player's right)
-	ArcLeft = math.rad(80),
-	ArcRight = math.rad(55),
-	ReachMin = 1.6, -- blade distance from body center
-	ReachMax = 5.0,
-	LiftStart = 0.85, -- aim.Y beyond this lifts the blade instead of extending reach
-	LiftMax = 2.0, -- blade height at full lift
+	-- Aim arc (radians from straight ahead; positive = to the player's right).
+	-- Kept inside the default camera view so the blade never leaves the screen
+	-- (was 80/55 deg, which went out of frame; M0 playtest).
+	ArcLeft = math.rad(58),
+	ArcRight = math.rad(48),
+	ReachMin = 2.6, -- blade distance from body center (was 1.6-5.0: "too close")
+	ReachMax = 6.5,
+	-- The blade is never closer than this in FRONT of the body, so it stays on screen at
+	-- every arc position. A fixed gameplay rule, deliberately NOT derived from the camera:
+	-- FOV will be a player setting and must never change how the stick plays. Tested:
+	-- keeps the whole blade on screen for vertical FOV >= ~88 at the default pitch, so
+	-- the FOV setting's minimum should be 88 (or raise this value).
+	MinBladeForward = 3.3,
+	LiftStart = 0.8, -- aim.Y beyond this lifts the blade instead of extending reach
+	LiftMax = 3.0, -- blade height at full lift (starting guess; tune later)
+	-- Where the hands are, relative to body center (X right, Z back). The shaft always
+	-- points from the blade back toward this point, like the reference images.
+	HandOffset = Vector3.new(-0.4, 0, -0.8), -- left shot; mirrored for right
 
 	BladeSize = Vector3.new(1.1, 0.3, 0.12), -- (length, height, thickness)
-	ShaftLength = 5.3,
+	ShaftLength = 5.0,
 	ShaftThickness = 0.12,
-	LieAngle = math.rad(45), -- shaft rise from the ice
+	LieAngle = math.rad(40), -- shaft rise from the ice
 	Density = 6, -- stick ~7x puck mass, so the puck can't knock the stick around
 
 	-- Blade face tilt, in discrete scroll steps. Scroll up = open, scroll down = close.
@@ -73,15 +86,15 @@ Config.Puck = {
 }
 
 Config.Camera = {
-	FieldOfView = 90, -- Roblox FOV is vertical
+	FieldOfView = 95, -- Roblox FOV is vertical. Was 90; will become a player setting
 	PitchDown = math.rad(18), -- default downward tilt so the blade and puck are visible
 }
 
 Config.Input = {
 	-- Default keybinds live on the InputActions in ReplicatedStorage.Inputs.
 	-- A rebinding menu will edit those bindings later.
-	StickSensitivityX = 0.0035, -- aim units per pixel
-	StickSensitivityY = 0.0035,
+	StickSensitivityX = 0.0028, -- aim units per pixel (was 0.0035: a bit high on fast swings)
+	StickSensitivityY = 0.0028,
 }
 
 return Config

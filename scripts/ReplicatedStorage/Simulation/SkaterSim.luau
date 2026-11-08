@@ -20,9 +20,17 @@ function SkaterSim.step(rec: any, input: any, dt: number)
 	local root: BasePart = rec.root
 
 	-- Heading (yaw). A/D turn; D = turn right = negative yaw in Roblox.
+	-- The yaw rate ramps toward the target instead of jumping, so turns ease in and out.
 	local heading = (root:GetAttribute("Heading") :: number?) or 0
-	heading -= input.move.X * C.TurnRate * dt
+	local turnVel = (root:GetAttribute("TurnVel") :: number?) or 0
+	local targetTurn = -input.move.X * C.TurnRate
+	local maxChange = C.TurnAccel * dt
+	turnVel += math.clamp(targetTurn - turnVel, -maxChange, maxChange)
+	heading += turnVel * dt
 	root:SetAttribute("Heading", heading)
+	if root:GetAttribute("TurnVel") ~= turnVel then
+		root:SetAttribute("TurnVel", turnVel)
+	end
 	rec.upright.CFrame = CFrame.Angles(0, heading, 0)
 
 	local fwd = Vector3.new(-math.sin(heading), 0, -math.cos(heading))
@@ -33,6 +41,14 @@ function SkaterSim.step(rec: any, input: any, dt: number)
 	local vr = v:Dot(right)
 	local throttle = input.move.Y
 
+	-- Brake ramp: braking force eases in over BrakeRampTime instead of hitting at once.
+	local braking = throttle < 0 and vf > 0
+	local brakeTime = if braking then ((root:GetAttribute("BrakeTime") :: number?) or 0) + dt else 0
+	if root:GetAttribute("BrakeTime") ~= brakeTime then
+		root:SetAttribute("BrakeTime", brakeTime)
+	end
+	local brakeStrength = math.min(1, brakeTime / C.BrakeRampTime)
+
 	if throttle > 0 then
 		if vf >= 0 then
 			vf += C.ForwardAccel * math.max(0, 1 - vf / C.MaxSpeed) * throttle * dt
@@ -41,7 +57,7 @@ function SkaterSim.step(rec: any, input: any, dt: number)
 		end
 	elseif throttle < 0 then
 		if vf > 0 then
-			vf = math.max(0, vf + C.BrakeDecel * throttle * dt) -- S while moving forward: slow down
+			vf = math.max(0, vf + C.BrakeDecel * brakeStrength * throttle * dt) -- S while moving forward: slow down
 		else
 			vf -= C.BackwardAccel * math.max(0, 1 + vf / C.BackwardMaxSpeed) * -throttle * dt
 		end
