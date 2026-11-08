@@ -16,7 +16,7 @@ Every claim about Puck is tagged:
 | **[Inferred]** | My interpretation of the above. Not observed. |
 | **[Unknown]** | I couldn't find it. Needs a playtest or footage. |
 
-**Important limitation:** I can't watch video. Everything here comes from text: the store page, patch notes, community threads and guides, and mod documentation. Several things CLAUDE.md asks about (camera feel, exactly how turning works, how lifting the puck works) are best answered by playing Puck. It's free on Steam; 30–60 minutes of play focused on the [open questions](#9-open-questions-for-you) would close most of the gaps below.
+**Important limitation:** I can't watch video. Everything here comes from text: the store page, patch notes, community threads and guides, and mod documentation. Several things CLAUDE.md asks about (camera feel, exactly how turning works, how lifting the puck works) are best answered by playing Puck. It's free on Steam; 30–60 minutes of play would still help confirm the [design decisions](#9-design-decisions) and close the remaining **[Unknown]** gaps below.
 
 ---
 
@@ -28,7 +28,7 @@ Every claim about Puck is tagged:
 
 **Relevant Workspace settings right now:** `AuthorityMode = Automatic` (classic client/server physics), `StreamingEnabled = true`, `Gravity = 196.2`.
 
-**Repo:** the git repo contains only `CLAUDE.md`. The place file and its scripts are not under version control (see [open question 8](#9-open-questions-for-you)).
+**Repo:** hosted at https://github.com/TJhayes22/Breakaway. Studio is the source of truth; scripts are exported to `/scripts` mirroring the Studio hierarchy (see `scripts/README.md`). The place file isn't committed yet ([decision 8](#9-design-decisions)).
 
 **MCP tools available and how I'll use them:**
 
@@ -253,10 +253,14 @@ Don't use default `Humanoid` walking. It's built for instant start/stop on foot.
 **Recommendation: a custom physics skater body**, driven in `BindToSimulation`:
 - One unanchored capsule-ish collider (root), kept upright by `AlignOrientation`, with yaw from the player's turn input.
 - Each simulation step, compute the force/velocity change from inputs:
-  - **Thrust** along the skate heading, following an acceleration curve (strong from rest, tapering near top speed).
+  - **Thrust** (`W`) along the skate heading, following an acceleration curve (strong from rest, tapering near top speed). `S` brakes.
+  - **Turning** (`A`/`D`) rotates the skater's heading at a capped turn rate. Turning is never done with the mouse ([decision 2](#9-design-decisions)).
   - **Low friction along the skate** (glide), **high friction across it** (edges bite). This one rule is what makes it feel like skating: velocity gradually rotates toward where you're facing, and **turn radius grows with speed** naturally.
-  - **Brake** (`S`) and **hard stop** (dedicated key; high cross-friction with skates turned sideways, maybe ice-spray effect).
-  - **Sprint** with stamina.
+  - **Carve** (hold `Ctrl`): higher turn rate and edge grip, skater crouches slightly (lower camera and collider).
+  - **Sprint** (`Shift`): higher thrust and top speed, drains **stamina**.
+  - **Jump** (`Space`): costs stamina.
+  - One shared stamina bar with a regen delay. Hard stop and backwards skating are deferred.
+- **Dive (planned, not scheduled):** costs stamina; the skater drops and slides on the ice with momentum, can still move the stick, can't skate for ~3 s, then gets up. Built later as a fun "lock"/desperation move. The stick-while-down requirement means the stick's pivot has to work from a prone body pose, which we'll keep in mind when building the stick.
 - The visible character (body, arms, gloves) is a separate, non-colliding visual rig that follows the root. In first person, the local player sees only arms, gloves and stick.
 
 Alternative: Roblox's Character Controller Library (`ControllerManager` + `GroundController` with acceleration/friction/turn parameters). It's Server-Authority compatible and less custom code, but it's designed for walking, and the lateral-grip model above is hard to express with it. Worth a 1-hour comparison during the spike, not a commitment.
@@ -265,7 +269,7 @@ Alternative: Roblox's Character Controller Library (`ControllerManager` + `Groun
 
 **Recommendation: a physical stick assembly driven toward a target by `AlignPosition` + `AlignOrientation`**, the Roblox equivalent of Puck's PID-driven stick:
 - The stick is its **own unanchored assembly** (not welded to the skater), so it collides with the puck, boards and other sticks for real.
-- **Input:** mouse deltas move a target in "stick space" around the player: **angle** (mouse X; wider arc on the forehand than backhand) and **reach** (mouse Y; past a threshold the blade lifts). Scroll sets the **blade angle** in discrete steps.
+- **Input:** mouse deltas move a target in "stick space" around the player: **angle** (mouse X; wider arc on the forehand than backhand) and **reach** (mouse Y; past a threshold the blade lifts). Scroll sets the **blade angle** in discrete steps. **Scroll up closes the face** (tilts it over the puck, keeps it on the ice); **scroll down opens it** (tilts it back so contact pushes the puck upward). Lift comes from the real contact normal of the tilted blade, not a scripted pop, so the same input gives saucer passes, wristers and top-shelf shots depending on stick speed ([decision 5](#9-design-decisions)).
 - **Speed cap:** `MaxVelocity` / `MaxAngularVelocity` on the align constraints caps sweep speed. This is both a feel knob and an **anti-exploit guarantee** (the server enforces it no matter what the client sends).
 - **Pivot** at the bottom-center of the blade, following Puck's lesson.
 - **Blade collider** slightly thicker than the visual blade, and **sweep tests** from last frame's blade pose to this frame's to catch tunneling.
@@ -285,7 +289,10 @@ Shooting and passing then **emerge** from stick speed and blade angle at contact
 - First person, locked to the skater's head with gentle **speed-based bob/sway** and FOV kick on sprint (subtle, toggleable).
 - **Default downward pitch** so the puck near your blade is visible, plus a settings slider (Puck added this).
 - FOV slider (default ~90 vertical in Roblox terms; max 120). Separate horizontal/vertical mouse sensitivity, **low defaults**.
-- How the player looks around while the mouse is driving the stick is an open design question ([Q2](#9-open-questions-for-you)).
+- Look controls ([decision 2](#9-design-decisions)):
+  - **Default:** camera faces the skater's heading (A/D turn the body and the view). Mouse cursor is locked; mouse movement drives the stick only.
+  - **Hold right mouse:** free-look. Mouse rotates the camera instead of the stick; the stick holds its last target. On release, the camera eases back to the heading.
+  - **Left click:** camera snaps to focus on the puck (ease in quickly, not an instant cut, to avoid disorientation).
 
 ---
 
@@ -297,11 +304,12 @@ Shooting and passing then **emerge** from stick speed and blade angle at contact
 | Contested-puck mispredictions | Other players' inputs aren't known locally, so puck battles will correct. | Forward inputs via attributes (Racing template technique), render smoothing, and design for it (slightly heavier puck, capped stick speed). |
 | Puck tunneling through blade/boards | No CCD in Roblox. | Thick colliders, speed caps, sweep tests, thick boards. |
 | 60 Hz control step | Puck uses 200 Hz. Fast flicks may feel coarser. | Solver substeps between steps. Test early; if needed, interpolate stick targets within a step. |
-| Tiny objects at Roblox scale | A real puck is ~0.25 studs; tiny parts are hard to see and collide poorly. | Oversize the puck (~2×) and blade. Decision for you ([Q4](#9-open-questions-for-you)). |
+| Tiny objects at Roblox scale | A real puck is ~0.25 studs; tiny parts are hard to see and collide poorly. | Puck is 2× real size ([decision 4](#9-design-decisions)); blade collider oversized too. |
+| `Ctrl` as the carve key | Ctrl+A/Ctrl+D/Ctrl+W combos may be intercepted by Studio shortcuts during playtests (and Ctrl+click is right-click on some setups). | Verify in the first skating test. Make the key rebindable in `Config`; fallback `C` or `Left Alt`. |
 | Default gravity | Roblox's 196.2 studs/s² is ~6× real gravity at 1 stud ≈ 0.3 m; lifted pucks would drop like rocks. | Set match-place gravity to ~32.7 studs/s² (real-world at our scale). |
 | Onboarding | Puck's #1 complaint. | Low default sensitivity, practice rink, tutorial prompts. |
 | Server CPU | SA + 6 skaters + 6 sticks + puck + 2 AI goalies at 60 Hz. | Profile in Phase 4. Small player count helps. |
-| Version control | Scripts live only inside the place file today. | Decide a sync approach before writing code ([Q8](#9-open-questions-for-you)). |
+| Version control | Studio is the source of truth; git only sees exported copies. | Re-export to `/scripts` after every milestone (see `scripts/README.md`). Save the place to a file soon; it's currently unsaved. |
 
 ---
 
@@ -318,7 +326,7 @@ All of these go in one `Config` module and are **starting points for tuning**, n
 | Rink | **~160 × 70 studs** (~48 × 21 m), corner radius ~20 studs | Smaller than NHL (61 × 26 m) for 3v3 pace. |
 | Boards | ~3.6 studs high + glass | |
 | Goal | ~6 × 4 studs (6 × 4 ft) | |
-| Puck | **0.5 studs diameter × 0.17 thick** | ~2× real for visibility. Your call. |
+| Puck | **0.5 studs diameter × 0.17 thick** | 2× real size (decided). Revisit after stickhandling tests. |
 | Puck max speed | ~100 studs/s (30 m/s) | Matches Puck's cap. |
 | Skater cruise / sprint top speed | ~30 / ~38 studs/s (9 / 11.4 m/s) | |
 | Stick length / blade | ~5.3 studs / ~1 × 0.25 studs | Collider thicker than visual. |
@@ -334,7 +342,8 @@ Only what the prototype needs. No empty folders.
 ReplicatedStorage
   Config                 (ModuleScript)  all tunables
   Inputs                 (Folder)        InputContext + InputActions, cloned per player
-    Skate (Vector2), StickAim (Vector2), BladeAngle, Sprint, Stop, Jump
+    Skate (Vector2: W/S + A/D), StickAim (Vector2), BladeAngle, Carve, Sprint, Jump
+    (free-look and puck-focus are camera-only, so they stay client-side and aren't sim inputs)
   Simulation             (ModuleScript)  BindToSimulation entry point, runs on client + server
     SkaterSim            (ModuleScript)  momentum skating
     StickSim             (ModuleScript)  stick target -> align constraints, speed caps
@@ -380,8 +389,8 @@ Each milestone ends with: what was built, files changed, what I tested, what's u
 |---|---|---|
 | **0** | **Server Authority spike** (throwaway) | Puck + one constraint-driven stick + simple skater under SA. With `rbx-network-simulator` at 100 ms: prediction success rate measured, stick and puck look stable. **Go/no-go on SA.** |
 | 1 | Rink + puck | Ice, boards, goals, puck. Puck glides, bounces off boards believably, never tunnels at max speed. |
-| 2 | Skater + first-person camera | Momentum skating (accel curve, glide, edge grip, brake, hard stop, sprint/stamina). Camera with pitch offset and FOV/sensitivity settings. |
-| 3 | Stick (aim + reach + blade angle) | Visible stick follows mouse in an arc, lifts at full reach, collides with boards and puck. |
+| 2 | Skater + first-person camera | Momentum skating: W thrust with accel curve, S brake, A/D turn, glide/edge grip, Ctrl carve with crouch, Shift sprint and Space jump on a shared stamina bar. Camera with pitch offset, FOV/sensitivity settings, RMB free-look, LMB puck focus. |
+| 3 | Stick (aim + reach + blade angle) | Visible stick follows mouse in an arc, lifts at full reach, scroll opens/closes the blade, collides with boards and puck. |
 | 4 | Stickhandling, passing, shooting | Shots, passes and dekes emerge from stick motion. Exit-trajectory and grip tuning. **This is the "does it feel good" checkpoint.** |
 | 5 | Two-player test | Two local clients contest the puck at simulated 50–150 ms. Measure and tune. |
 
@@ -391,16 +400,18 @@ Milestones 0–4 = CLAUDE.md Phases 2–3. Milestone 5 starts Phase 4.
 
 ---
 
-## 9. Open questions for you
+## 9. Design decisions
 
-1. **Server Authority.** Are you OK with building on Server Authority from day one, gated by the milestone-0 spike, with dynamic ownership (option B) as the fallback?
-2. **Look vs stick control.** In Puck the mouse drives the stick. How should turning and looking work? Options: (a) A/D turn the skater and the camera follows the body, mouse is only stick; (b) mouse aims the stick, hold a key (e.g. right mouse) for free-look; (c) the camera follows the stick direction loosely. Playing Puck for a few minutes would show what it does.
-3. **Movement scope for the prototype.** Include jump, slide, backwards skating and hard stop now, or start with forward/brake/turn/sprint and add the rest after the stick works?
-4. **Puck size.** Accept a ~2× oversized puck (0.5 studs) for visibility and stable collisions?
-5. **Lifting the puck.** Should lift come from blade angle (open/closed face), stick lift at full reach, a modifier key, or a combination? This determines how saucer passes and top-shelf shots work.
-6. **Accessibility vs fidelity.** Allow subtle physical assists (e.g. extra puck stability on the blade) that make stickhandling learnable without automating it?
-7. **Input platforms.** Mouse + keyboard only for the prototype? (Controller/mobile is a Phase 8 evaluation per CLAUDE.md.)
-8. **Version control.** Scripts currently live only inside the place file. Options: commit the `.rbxl` to git, use Studio's built-in script file sync, or use Rojo (external tool, needs justification per CLAUDE.md). I'd suggest at least committing the place file.
+Answered by the designer on 2026-11-08. These replace the open questions from the first draft.
+
+1. **Server Authority:** yes, from the start, gated by the milestone-0 spike. Dynamic ownership (option B) stays the fallback.
+2. **Turning and looking:** like Puck. `A`/`D` turn the skater. Hold right mouse and move the mouse to look around freely. Left click snaps the camera to the puck. Otherwise the mouse drives the stick. (Details in [6.5](#65-camera).)
+3. **Prototype skating moves:** turning, carve (hold `Ctrl`: faster turn, slight crouch), sprint (drains stamina), jump (costs stamina). **Dive is plan-only**: costs stamina, slide on the ice with stick control, can't skate for ~3 s, then get up. (Details in [6.2](#62-skating).)
+4. **Puck size:** 2× real (0.5 studs). Adjust later if needed.
+5. **Lifting the puck:** blade angle via scroll wheel. Scroll up closes the face, scroll down opens it so the puck lifts. (Details in [6.3](#63-stick).)
+6. **Physical assists:** subtle assists are OK to make the game easier to learn. Still no magnetism or auto-aim.
+7. **Input:** mouse and keyboard only for the prototype.
+8. **Version control:** git on GitHub (https://github.com/TJhayes22/Breakaway). Studio is the source of truth; scripts are exported to `/scripts` mirroring the Studio hierarchy and re-exported after big changes. Committing the place file is optional, pending a size check.
 
 ---
 

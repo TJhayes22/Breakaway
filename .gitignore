@@ -1,0 +1,10 @@
+# Roblox Studio lock files and autosaves
+*.rbxl.lock
+*.rbxlx.lock
+*.rbxl.bak
+*.rbxlx.bak
+
+# OS clutter
+Thumbs.db
+desktop.ini
+.DS_Store
