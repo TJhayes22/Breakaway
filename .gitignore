@@ -1,3 +1,7 @@
+# Roblox place files (keep local backups, version scripts instead)
+*.rbxl
+*.rbxlx
+
 # Roblox Studio lock files and autosaves
 *.rbxl.lock
 *.rbxlx.lock
