@@ -41,7 +41,7 @@ Config.Stick = {
 	LieAngle = math.rad(45), -- shaft rise from the ice
 	Density = 6, -- stick ~7x puck mass, so the puck can't knock the stick around
 
-	-- Blade face tilt, in discrete scroll steps. Scroll up = close, scroll down = open.
+	-- Blade face tilt, in discrete scroll steps. Scroll up = open, scroll down = close.
 	BladeAngleStep = math.rad(12.5),
 	BladeAngleSteps = 4,
 

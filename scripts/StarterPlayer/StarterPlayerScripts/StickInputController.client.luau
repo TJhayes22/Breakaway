@@ -3,7 +3,7 @@
 --
 -- The client sends an ABSOLUTE aim (not mouse deltas) through Scriptable input bindings.
 -- Absolute values survive dropped/late inputs without drift, and the server clamps them.
--- Scroll up closes the blade face, scroll down opens it (lifts the puck).
+-- Scroll up opens the blade face (lifts the puck), scroll down closes it.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -47,9 +47,9 @@ UserInputService.InputChanged:Connect(function(input, processed)
 		return
 	end
 	if input.Position.Z > 0 then
-		bladeSteps = math.max(bladeSteps - 1, -STEPS) -- scroll up: close
+		bladeSteps = math.min(bladeSteps + 1, STEPS) -- scroll up: open
 	elseif input.Position.Z < 0 then
-		bladeSteps = math.min(bladeSteps + 1, STEPS) -- scroll down: open
+		bladeSteps = math.max(bladeSteps - 1, -STEPS) -- scroll down: close
 	end
 	bladeBinding:Fire(bladeSteps / STEPS)
 end)
