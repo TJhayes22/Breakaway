@@ -27,26 +27,27 @@ Config.Skater = {
 }
 
 Config.Stick = {
-	Handedness = "Left", -- "Left" shot: blade sits on the player's left; forehand sweeps left -> right
+	Handedness = "Right", -- "Right" shot: forehand on the player's right; forehand sweeps right -> left. Was "Left" (2026-11-09 playtest)
 
 	-- Aim arc (radians from straight ahead; positive = to the player's right).
 	-- Kept inside the default camera view so the blade never leaves the screen
 	-- (was 80/55 deg, which went out of frame; M0 playtest).
-	ArcLeft = math.rad(58),
-	ArcRight = math.rad(48),
-	ReachMin = 2.6, -- blade distance from body center (was 1.6-5.0: "too close")
+	-- The forehand side (right, for a right shot) gets the wider arc.
+	ArcLeft = math.rad(48),
+	ArcRight = math.rad(58),
+	ReachMin = 2.3, -- blade distance from body center. Was 2.6; pulled back ~1 stud closer with MinBladeForward (2026-11-09 playtest)
 	ReachMax = 6.5,
-	-- The blade is never closer than this in FRONT of the body, so it stays on screen at
-	-- every arc position. A fixed gameplay rule, deliberately NOT derived from the camera:
-	-- FOV will be a player setting and must never change how the stick plays. Tested:
-	-- keeps the whole blade on screen for vertical FOV >= ~88 at the default pitch, so
-	-- the FOV setting's minimum should be 88 (or raise this value).
-	MinBladeForward = 3.3,
-	LiftStart = 0.8, -- aim.Y beyond this lifts the blade instead of extending reach
-	LiftMax = 3.0, -- blade height at full lift (starting guess; tune later)
-	-- Where the hands are, relative to body center (X right, Z back). The shaft always
-	-- points from the blade back toward this point, like the reference images.
-	HandOffset = Vector3.new(-0.4, 0, -0.8), -- left shot; mirrored for right
+	-- The blade is never closer than this in FRONT of the body. A fixed gameplay rule,
+	-- deliberately NOT derived from the camera: FOV will be a player setting and must never
+	-- change how the stick plays. Was 3.3, which kept the whole blade on screen for vertical
+	-- FOV >= ~88; at 2.3 (2026-11-09 playtest: "come back ~1 stud") the fully pulled-back
+	-- blade sits at the bottom edge of the view, partly off screen, like Puck.
+	MinBladeForward = 2.3,
+	LiftStart = 0.8, -- aim.Y beyond this lifts the stick instead of extending reach
+	-- Lift pitches the whole stick up around the hands like a baseball bat (M0 playtest;
+	-- was a straight 3-stud raise). At 55 deg the blade ends up ~5 studs off the ice.
+	LiftPitchMax = math.rad(55),
+	-- Blade yaw (face direction) tunables live at the top of Simulation.StickSim (BLADE_YAW).
 
 	BladeSize = Vector3.new(1.1, 0.3, 0.12), -- (length, height, thickness)
 	ShaftLength = 5.0,
@@ -93,8 +94,8 @@ Config.Camera = {
 Config.Input = {
 	-- Default keybinds live on the InputActions in ReplicatedStorage.Inputs.
 	-- A rebinding menu will edit those bindings later.
-	StickSensitivityX = 0.0028, -- aim units per pixel (was 0.0035: a bit high on fast swings)
-	StickSensitivityY = 0.0028,
+	StickSensitivityX = 0.0018, -- aim units per pixel. Was 0.0028 ("really high", 2026-11-09), 0.0035 before that
+	StickSensitivityY = 0.0018,
 }
 
 return Config
