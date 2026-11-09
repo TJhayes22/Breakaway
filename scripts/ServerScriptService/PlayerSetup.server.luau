@@ -6,6 +6,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Config)
+local StickSim = require(ReplicatedStorage.Simulation.StickSim)
 
 local SPAWN = Vector3.new(0, Config.Skater.BodySize.Y / 2 + 0.05, 12) -- facing -Z, toward center ice
 
@@ -36,26 +37,35 @@ local function buildStick(model: Model, rootCFrame: CFrame)
 	blade.CFrame = rootCFrame * CFrame.new(0, -Config.Skater.BodySize.Y / 2 + 0.2, -3)
 	blade.Parent = stick
 
-	-- Shaft rises from the heel (inner end, -X) back toward the player at the lie angle.
-	local heel = Vector3.new(-S.BladeSize.X / 2, 0, 0)
-	local dir = Vector3.new(-math.cos(S.LieAngle), math.sin(S.LieAngle), 0)
-	local center = heel + dir * (S.ShaftLength / 2)
-	local shaft = Instance.new("Part")
-	shaft.Name = "Shaft"
-	shaft.Size = Vector3.new(S.ShaftThickness, S.ShaftLength, S.ShaftThickness)
-	shaft.Color = Color3.fromRGB(200, 60, 40)
-	shaft.Material = Enum.Material.SmoothPlastic
-	shaft.CustomPhysicalProperties = frictionless(S.Density)
-	-- Shaft hits pucks and other sticks only. If it collided with the ice/boards it could
-	-- wedge the whole stick (found in the Milestone 0 spike).
-	shaft.CollisionGroup = "Shafts"
-	shaft.CFrame = blade.CFrame * CFrame.new(center) * CFrame.Angles(0, 0, math.pi / 2 - S.LieAngle)
-	shaft.Parent = stick
+	-- Shaft: two physics parts (lower shaft + handle), NOT welded (docs/STICK_DESIGN.md
+	-- option B2, §10.4). StickSim places them every step on the line from the blade's heel
+	-- toward the hands; they telescope (overlap more as the blade comes in). They hit pucks
+	-- and other sticks only: never skaters, and never ice/boards (a shaft that hit the ice
+	-- wedged the whole stick in the Milestone 0 spike).
+	local hands = StickSim.handAnchor(rootCFrame.Position, 0, Vector2.new(0, 0.5))
+	local shaftCF, gripCF = StickSim.shaftTargets(blade.CFrame, hands)
+	local function shaftPart(name: string, thickness: number, length: number, color: Color3, cf: CFrame): Part
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Size = Vector3.new(thickness, thickness, length) -- long axis = Z
+		p.Color = color
+		p.Material = Enum.Material.SmoothPlastic
+		p.CustomPhysicalProperties = frictionless(S.ShaftDensity)
+		p.CollisionGroup = "Shafts"
+		p.CFrame = cf
+		p.Parent = stick
+		return p
+	end
+	local shaft = shaftPart("Shaft", S.ShaftThickness, S.ShaftLength, Color3.fromRGB(200, 60, 40), shaftCF)
+	local handle = shaftPart("Handle", S.GripThickness, S.GripLength, Color3.fromRGB(35, 35, 40), gripCF)
 
-	local weld = Instance.new("WeldConstraint")
-	weld.Part0 = blade
-	weld.Part1 = shaft
-	weld.Parent = blade
+	-- The player's own stick pieces overlap; they must never push each other.
+	for _, pair in { { blade, shaft }, { blade, handle }, { shaft, handle } } do
+		local noCollide = Instance.new("NoCollisionConstraint")
+		noCollide.Part0 = pair[1]
+		noCollide.Part1 = pair[2]
+		noCollide.Parent = pair[1]
+	end
 
 	local grip = Instance.new("Attachment")
 	grip.Name = "Grip"

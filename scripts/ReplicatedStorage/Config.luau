@@ -44,16 +44,38 @@ Config.Stick = {
 	-- blade sits at the bottom edge of the view, partly off screen, like Puck.
 	MinBladeForward = 2.3,
 	LiftStart = 0.8, -- aim.Y beyond this lifts the stick instead of extending reach
-	-- Lift pitches the whole stick up around the hands like a baseball bat (M0 playtest;
-	-- was a straight 3-stud raise). At 55 deg the blade ends up ~5 studs off the ice.
+	-- Lift swings the blade up around the hands like a baseball bat, toe first (M0 playtest;
+	-- was a straight 3-stud raise). The shaft follows (STICK_DESIGN.md §4.4).
 	LiftPitchMax = math.rad(55),
 	-- Blade yaw (face direction) tunables live at the top of Simulation.StickSim (BLADE_YAW).
 
 	BladeSize = Vector3.new(1.1, 0.3, 0.12), -- (length, height, thickness)
-	ShaftLength = 5.0,
+	-- Blade and shaft are separate physics parts (STICK_DESIGN.md option B2).
+	Density = 17, -- blade alone ~7x puck mass, so the puck can't knock it around (was 6 with the shaft welded on)
+	ShaftDensity = 6,
+	-- Telescoping shaft (STICK_DESIGN.md §10.4): the lower shaft starts at the heel, the
+	-- handle ends ButtOverhang past the hands; they overlap more as the blade comes in.
+	-- GripLength <= shortest heel-to-hands + ButtOverhang (handle never passes the heel);
+	-- ShaftLength + GripLength >= longest heel-to-hands + ButtOverhang (no gap).
+	ShaftLength = 4.4,
 	ShaftThickness = 0.12,
-	LieAngle = math.rad(40), -- shaft rise from the ice
-	Density = 6, -- stick ~7x puck mass, so the puck can't knock the stick around
+	GripLength = 3.5,
+	GripThickness = 0.15, -- a bit thicker than the shaft, like taped grip; hides the overlap
+	ButtOverhang = 0.4, -- handle's butt end past the hands
+	-- 0..1: how far the toe turns toward the hands line when extended (STICK_DESIGN.md
+	-- §10.3). 1 = the shaft always reaches the hands; 0 = the original yaw model.
+	HandsLineBlend = 1,
+	LieAngle = math.rad(40), -- fallback shaft angle only, if the hands were ever ahead of the heel
+	-- Hands (STICK_DESIGN.md §4.1): base point relative to the body center (X right, Y up,
+	-- -Z forward) for a right shot, mirrored for a left shot. They drift sideways opposite
+	-- the blade by HandSwing x the blade's sideways offset (studs), capped at HandSwingMax.
+	HandAnchor = Vector3.new(-0.6, 0.5, -1.1),
+	HandSwing = 0.15,
+	HandSwingMax = 1.0,
+	-- Shaft drive caps. The shaft re-attaches to the blade every step; these only stop
+	-- runaway values (e.g. right after a reset).
+	ShaftMaxSpeed = 150,
+	ShaftMaxAngularSpeed = 60,
 
 	-- Blade face tilt, in discrete scroll steps. Scroll up = open, scroll down = close.
 	BladeAngleStep = math.rad(12.5),

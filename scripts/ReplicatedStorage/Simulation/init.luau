@@ -34,6 +34,8 @@ export type SkaterRecord = {
 	root: BasePart,
 	upright: AlignOrientation,
 	blade: BasePart,
+	shaft: BasePart, -- its own assembly, placed from the blade each step (STICK_DESIGN.md B2)
+	handle: BasePart, -- upper shaft piece (grip), telescopes over the shaft (STICK_DESIGN.md §10.4)
 	drive: AlignPosition,
 	aimAlign: AlignOrientation,
 	actions: { [string]: InputAction },
@@ -121,9 +123,11 @@ local function registerSkater(model: Model)
 	local root = model:WaitForChild("Root", 10) :: BasePart?
 	local stick = model:WaitForChild("Stick", 10)
 	local blade = stick and stick:WaitForChild("Blade", 10) :: BasePart?
+	local shaft = stick and stick:WaitForChild("Shaft", 10) :: BasePart?
+	local handle = stick and stick:WaitForChild("Handle", 10) :: BasePart?
 	local controls = player:WaitForChild("Inputs", 10)
 	controls = controls and controls:WaitForChild("Controls", 10)
-	if not (root and blade and controls) then
+	if not (root and blade and shaft and handle and controls) then
 		warn("[Simulation] skater incomplete, not registered:", model:GetFullName())
 		return
 	end
@@ -135,13 +139,16 @@ local function registerSkater(model: Model)
 
 	setPredicted(root)
 	setPredicted(blade)
-	setPredicted((stick :: Instance):WaitForChild("Shaft", 10) :: Instance)
+	setPredicted(shaft)
+	setPredicted(handle)
 
 	skaters[model] = {
 		model = model,
 		root = root,
 		upright = root:WaitForChild("Upright") :: AlignOrientation,
 		blade = blade,
+		shaft = shaft,
+		handle = handle,
 		drive = blade:WaitForChild("Drive") :: AlignPosition,
 		aimAlign = blade:WaitForChild("Aim") :: AlignOrientation,
 		actions = actions,

@@ -159,7 +159,132 @@ Then **one** feel playtest by you.
 - ~~Q1.~~ **Decided 2026-11-09: B2** (two pieces, blade unchanged).
 - ~~Q2.~~ **Decided 2026-11-09: long shaft**, always reaching the hands.
 - ~~Q3.~~ **Decided 2026-11-09: hands move opposite the blade** (§4.1).
+- ~~Q5.~~ **Decided 2026-11-09: (a) toe follows the hands line when extended, with a blend knob, plus a telescoping two-piece shaft** (§10).
 - **Q4.** _Still open._ Scroll direction: today scroll up tilts the forward face **down**, which is opposite to what the research doc records ("scroll up opens"). Confirm with a puck lift test which scroll direction lifts the puck, and we'll update the research doc to match.
+
+## 9. B2 implementation results (2026-11-09)
+
+### 9.1 What was built and measured
+
+- **Built:**
+  - The shaft is its own physical part.
+  - Each step it starts at the blade's heel, using where the blade **will be** at the end of the step, so it doesn't trail.
+  - It stays in the vertical plane through the blade's long axis, so it's always in line with the blade. Scroll tilt doesn't move it.
+  - Within that plane it angles as close to the hands as it can.
+  - It's placed exactly each step (it closes the whole error every step).
+  - Shaft length is 7.8.
+  - The hands swing opposite the blade.
+- **Results:**
+
+| Check | Result |
+|---|---|
+| 1. Blade unchanged | ✅ Same positions and yaw as the checkpoint formula (0 error). Lift is different **by design**: it now pivots on the swinging hands (§4.4). |
+| 2. Shaft on the hands | ⚠ Within 0.2–0.6 at center, max reach center and far left. 1.1–1.4 at far right, max right, pulled back right and full lift. **~2.9 at mid reach to the sides (aim.X ±0.5) and mid-flip** (see 9.2). |
+| 3. Heel joint | ✅ 0.006–0.031 studs at rest. Worst 0.166 during a 66 studs/s flick. |
+| 4. Max-reach look | ✅ Max reach center: the shaft runs off the bottom of the screen at center. Max right: off the bottom at 76% across. ⚠ Pulled back in the middle: the shaft stands nearly vertical in front of the camera (leaves the top of the screen). |
+| 5. Puck hits the shaft | ✅ A puck thrown at the shaft stops on it; the control throw passes. |
+| 6. No skater collisions | ✅ Collision groups verified. Own blade and shaft ignore each other (NoCollisionConstraint). |
+| 7. Misprediction | ✅ 0 events in 6 s of sweeps, flips and lift at 0 ms and with 110 ms incoming lag. (Caveat: the lag was set via Studio's network setting and wasn't independently confirmed.) |
+| 8. Shots unchanged | ✅ Forehand 20.3 studs/s at −29.8° (was 19.4 at −27.6°). Backhand 15.7 at +29.3° (was 16.1 at +29.4°). |
+
+### 9.2 The remaining conflict (Q5)
+
+- **The rule:** a shaft that's in line with the blade can only reach the hands if the toe points roughly away from the hands.
+- **Where it breaks:** our blade-yaw model turns the toe almost straight sideways (~79°) at mid reach, so the face looks forward. In those spots the in-line shaft lies across in front of the player instead of coming back to the hands. Puck looks like this only when **pulled back** (video 19.5 s). At mid reach, Puck's toe follows the hands-to-blade line (~45° at mid-right, video 8–9 s).
+- **Options:**
+  - **(a) Toe follows the hands-to-blade line when extended** (Puck geometry). The blade squares up only when pulled back.
+    - The stick always looks connected.
+    - The face is no longer near-square at mid reach, so it changes the approved blade feel.
+    - Could be a blend knob (0 = today's yaw, 1 = Puck line) to compare in one playtest.
+  - **(b) Allow a small bend at the heel:** the shaft turns partly toward the hands, by up to N°. It's more connected but shows a kink, which you disliked in the earlier experiment.
+  - **(c) Keep it:** the stick lies across in front at mid reach.
+- **Separate issue, pulled back in the middle:** the shaft stands nearly vertical in front of the camera. Possible fixes:
+  - cap the shaft's angle above the ice
+  - hide the part above the hands on your own screen only (the fallback in §4.3)
+  - let the blade go under the camera, like Puck
+
+## 10. Q5 fix: toe follows the hands, telescoping shaft (decided 2026-11-09)
+
+### 10.1 Your playtest feedback on B2
+
+- "The stick is a little too long."
+- "When it's far away it still looks really disconnected from the player."
+
+### 10.2 What we measured (B2, shaft 7.8)
+
+| Position | Shaft misses hands by | Shaft past the hands |
+|---|---|---|
+| Center, max reach | 0.6 | 2.0 |
+| Center, pulled back | 0.6 | **4.6** (above your head) |
+| Far right, max reach | 1.4 | 0.5 |
+| Mid-right, max reach | **3.7** | 2.3 |
+| Mid-left, max reach | **4.3** | 3.6 |
+
+- **Disconnect:** the yaw model points the toe ~79° sideways at diagonals, but the hands line is only ~40° off forward.
+- **Too long:** one fixed-length shaft has to be long enough for max reach, so closer in it sticks out past the hands.
+
+### 10.3 Fix 1: toe follows the hands line when extended (option a)
+
+- **Line yaw:** the direction from the hands to the blade target, flat on the ice. It's computed from the aim only (hands and blade target are both pure functions of aim), so client and server agree.
+- **The blend:** `toeYaw = modelYaw + HandsLineBlend × (1 − pullBack) × (lineYaw − modelYaw)`
+  - `modelYaw` is today's approved yaw (§2).
+  - At `HandsLineBlend = 1` and extended, the toe sits exactly on the hands line, so the in-line shaft reaches the hands.
+  - Pulled back, the toe still squares up as today. There the shaft can miss by about 1 stud, like Puck's pulled-back look.
+  - **`HandsLineBlend`** (Config, 0..1, starts at **1**): set it to 0 for the old yaw, to compare.
+- **Consequences, to judge in the playtest:**
+  - At extended diagonals the forward face turns ~50° inward (was ~11°), so shots from there go more across the body.
+  - **The forehand/backhand flip gets more gradual when extended.** The hands line only crosses straight-ahead slowly as the blade moves across. Around center the toe points mostly forward and the face looks sideways over a wider range than the snappy ±0.15 flip. Pulled back, the flip is unchanged.
+  - This is the geometric price of an in-line shaft that reaches the hands. A lower blend trades connection back for the snappier flip.
+- **Scroll tilt:** still uses the lateral-based `flip` value for its sign, so the scroll behavior doesn't change.
+
+### 10.4 Fix 2: telescoping shaft
+
+- **Two physical pieces** on the same line, from the heel toward the hands:
+  - **Lower shaft:** starts at the heel and runs up. Fixed length `ShaftLength`.
+  - **Grip:** its butt end sits `ButtOverhang` past the hands and it runs down toward the heel. Fixed length `GripLength`. Slightly thicker and darker, like taped grip; it overlaps the lower shaft.
+- **Lengths:** the heel-to-hands distance ranges from ~3.3 (pulled back) to ~7.5 (max reach right).
+  - The grip must not reach past the heel, so `GripLength ≤ shortest distance + ButtOverhang`.
+  - Together the pieces must span the longest distance: `ShaftLength + GripLength ≥ longest + ButtOverhang`.
+  - So pulled back, the lower shaft pokes ~0.5 past the grip's butt. Two pieces can't hide that completely (the range is more than 2×). Total past the hands is ~1 stud at worst, vs. 4.6 today.
+  - Exact values are measured during implementation.
+- **Both pieces** are their own predicted parts, driven deadbeat like today's shaft.
+  - Collision group `Shafts`: they hit the puck and other sticks, never skaters, ice or boards.
+  - `NoCollisionConstraint` between all three own pieces (blade, shaft, grip).
+- **If the shaft line misses the hands** (pulled back), the grip sits at the point on the line nearest the hands, so the stick stays one straight piece.
+
+### 10.5 Acceptance checks
+
+1. The blade position is unchanged. The yaw is unchanged at `HandsLineBlend = 0`.
+2. Extended (depth ≥ 0.5) at every standard position: the shaft line passes within **0.15** of the hands.
+3. Past the hands: **≤ ~1 stud** at every standard position, including lift.
+4. The grip never extends past the heel. Grip and lower shaft overlap at every position (no gap in the stick).
+5. Misprediction: 0 or near-0 in sweep, flip and lift tests (same method as §9).
+6. Flick test: report forehand and backhand shot directions and speeds (expected to change at diagonals; not a pass/fail).
+7. Then your feel playtest, including a comparison at `HandsLineBlend = 0.5` and 0.
+
+### 10.6 Results (2026-11-09; ShaftLength 4.4, GripLength 3.5, ButtOverhang 0.4, blend 1)
+
+The upper shaft piece is a part named `Handle`, because the blade already has an attachment named `Grip`.
+
+| Check | Result |
+|---|---|
+| 1. Blade position | ✅ Unchanged (`bladeLocalXZ` untouched). The yaw at blend 0 is the old formula exactly (the blend term is 0). |
+| 2. Shaft on the hands, extended | ✅ **0.000** miss on the whole aim grid (41×21 points) wherever depth ≥ 0.5, including lift. |
+| 3. Past the hands | ✅ Extended: **0.4** everywhere. Pulled back at center: 1.2. ⚠ Pulled back on the **backhand side** (lateral −0.7 … −0.15, depth < ~0.2): ~2–3 (see below). |
+| 4. Grip vs heel, overlap | ✅ The handle never passes the heel (minimum 0.00). The pieces always overlap (min 0.04 static; dynamic: always overlapping, ≥ 0.58). Handle stays on the shaft line (≤ 0.07). |
+| 5. Misprediction | ✅ 0 events (`RunService.Misprediction`) in 7 s of sweeps, flips, lift and a full-width flick, at 0 ms. Not re-run at 110 ms. |
+| Heel gap (dynamic) | ⚠ Worst **0.27** for a frame or two, only when the blade hits its 25 rad/s turn cap during a fast pulled-back flip near center (B2: 0.17). Otherwise < 0.12. |
+| 6. Flicks | Forehand from mid-right (aim 0.5, 0.6): 29.7 studs/s at **−46°**. Backhand from mid-left (−0.5, 0.6): 26.7 studs/s at **+67°**. Shots follow the new face angles, so the backhand from mid-left goes nearly sideways. |
+
+Collision setup verified: blade, shaft and handle all hit the puck and ignore skaters; 3 `NoCollisionConstraint`s keep the player's own pieces apart. Fast sweeps (~46 studs/s) still tunnel through the puck; that's a known part-2 issue.
+
+**Remaining pulled-back backhand case:**
+- Pulled back, the blade is square (toe straight left on the backhand), so the hands sit almost directly behind the heel.
+- The in-plane shaft can't point at them, so it falls back to the 40° default lie and crosses in front of you to the right.
+- B2 had the same pose with a 7.8 shaft. Now it's 4.4.
+- Possible follow-ups, to decide after the playtest:
+  - let the hands-line blend act partly even when pulled back
+  - pick a better fallback direction
 
 ## 8. Not in this step
 
