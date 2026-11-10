@@ -26,7 +26,7 @@ This doc records what we've **decided** about the stick and what's still **open*
 | Pulled back | The blade squares up (face straight ahead), based on depth only, on both sides. | `BLADE_YAW.PullBackFull/Start` |
 | Closest blade distance | **2.3 studs** in front of the body (was 3.3). Fully pulled back, the blade sits at the bottom edge of the screen. | `MinBladeForward`, `ReachMin` |
 | Stick sensitivity | **0.0018** aim units per pixel (was 0.0028). | `Config.Input` |
-| Scroll tilt | Tilts whichever face is forward, in 12.5° steps, ±4 steps: the same tilt on forehand and backhand. The switch between faces follows the blade's actual turn, so it rolls over smoothly as the toe passes straight ahead (§10.7). Direction set by playtest: scroll up tilts the forward face **down**. ⚠ See open question Q4. | `StickSim` (`tiltSign`, `BLADE_YAW.TiltFlipWidth`) |
+| Scroll tilt | Tilts whichever face is forward, in 12.5° steps, ±4 steps: the same tilt on forehand and backhand. The switch between faces follows the blade's actual turn, so it rolls over smoothly as the toe passes straight ahead (§10.7). **Scroll down opens** the forward face (tilts it up; lifts the puck), scroll up closes it (Q4, decided 2026-11-09). ⚠ Backhand tilt still needs tuning (Q6). | `StickSim` (`tiltSign`, `BLADE_YAW.TiltFlipWidth`) |
 | Lift | Past `LiftStart` the stick swings up around the hands like a baseball bat, toe first, up to 55°. | `LiftPitchMax` |
 | Shaft is physical | The shaft collides with the puck and other sticks, never with skaters, ice or boards. (A visual-only shaft was tried and **rejected**, 2026-11-09.) | collision group `Shafts` |
 | Drive method | The stick is moved by setting its velocities in the simulation, not by constraints. Constraints mispredicted in Milestone 0. | `Config.Stick.DriveMode = "Velocity"` |
@@ -160,7 +160,8 @@ Then **one** feel playtest by you.
 - ~~Q2.~~ **Decided 2026-11-09: long shaft**, always reaching the hands.
 - ~~Q3.~~ **Decided 2026-11-09: hands move opposite the blade** (§4.1).
 - ~~Q5.~~ **Decided 2026-11-09: (a) toe follows the hands line when extended, with a blend knob, plus a telescoping two-piece shaft** (§10).
-- **Q4.** _Still open._ Scroll direction: today scroll up tilts the forward face **down**, which is opposite to what the research doc records ("scroll up opens"). Confirm with a puck lift test which scroll direction lifts the puck, and we'll update the research doc to match.
+- ~~Q4.~~ **Decided 2026-11-09: scroll down lifts the puck** (opens the forward face). That's how the game already behaves, so only the docs and comments changed.
+- **Q6.** _Open (the user, 2026-11-09):_ "we still need to tweak how the blade gets tilted when in backhand." The specifics haven't been discussed yet. Start by asking what feels wrong: the amount, the direction, or how it looks on the backhand. Current behavior is in §10.7.
 
 ## 9. B2 implementation results (2026-11-09)
 

@@ -3,7 +3,8 @@
 --
 -- The client sends an ABSOLUTE aim (not mouse deltas) through Scriptable input bindings.
 -- Absolute values survive dropped/late inputs without drift, and the server clamps them.
--- Scroll up opens the blade face (lifts the puck), scroll down closes it.
+-- Scroll down opens the forward blade face (lifts the puck), scroll up closes it.
+-- (bladeSteps + = forward face tipped down; see StickSim's alpha.)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -47,7 +48,7 @@ UserInputService.InputChanged:Connect(function(input, processed)
 		return
 	end
 	if input.Position.Z > 0 then
-		bladeSteps = math.min(bladeSteps + 1, STEPS) -- scroll up: open
+		bladeSteps = math.min(bladeSteps + 1, STEPS) -- scroll up: close
 	elseif input.Position.Z < 0 then
 		bladeSteps = math.max(bladeSteps - 1, -STEPS) -- scroll down: close
 	end

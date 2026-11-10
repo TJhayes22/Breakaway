@@ -78,7 +78,8 @@ Config.Stick = {
 	ShaftMaxSpeed = 150,
 	ShaftMaxAngularSpeed = 60,
 
-	-- Blade face tilt, in discrete scroll steps. Scroll up = open, scroll down = close.
+	-- Blade face tilt, in discrete scroll steps. Scroll down = open (lifts the puck), scroll
+	-- up = close (STICK_DESIGN.md Q4, decided 2026-11-09).
 	BladeAngleStep = math.rad(12.5),
 	BladeAngleSteps = 4,
 
