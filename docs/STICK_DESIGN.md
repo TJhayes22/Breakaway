@@ -26,7 +26,7 @@ This doc records what we've **decided** about the stick and what's still **open*
 | Pulled back | The blade squares up (face straight ahead), based on depth only, on both sides. | `BLADE_YAW.PullBackFull/Start` |
 | Closest blade distance | **2.3 studs** in front of the body (was 3.3). Fully pulled back, the blade sits at the bottom edge of the screen. | `MinBladeForward`, `ReachMin` |
 | Stick sensitivity | **0.0018** aim units per pixel (was 0.0028). | `Config.Input` |
-| Scroll tilt | Tilts whichever face is forward, in 12.5° steps, ±4 steps: the same tilt on forehand and backhand. The switch between faces follows the blade's actual turn, so it rolls over smoothly as the toe passes straight ahead (§10.7). **Scroll down opens** the forward face (tilts it up; lifts the puck), scroll up closes it (Q4, decided 2026-11-09). ⚠ Backhand tilt still needs tuning (Q6). | `StickSim` (`tiltSign`, `BLADE_YAW.TiltFlipWidth`) |
+| Scroll tilt | A wrist roll: a fixed roll of the blade around its long axis, in 12.5° steps, ±4 steps, that stays with the blade as it swings across (§10.8, Q6). **Scroll down opens the forehand** (lifts the puck) and closes the backhand; **scroll up closes the forehand** and opens the backhand. | `StickSim` (`alpha` in `computeTarget`) |
 | Lift | Past `LiftStart` the stick swings up around the hands like a baseball bat, toe first, up to 55°. | `LiftPitchMax` |
 | Shaft is physical | The shaft collides with the puck and other sticks, never with skaters, ice or boards. (A visual-only shaft was tried and **rejected**, 2026-11-09.) | collision group `Shafts` |
 | Drive method | The stick is moved by setting its velocities in the simulation, not by constraints. Constraints mispredicted in Milestone 0. | `Config.Stick.DriveMode = "Velocity"` |
@@ -160,8 +160,8 @@ Then **one** feel playtest by you.
 - ~~Q2.~~ **Decided 2026-11-09: long shaft**, always reaching the hands.
 - ~~Q3.~~ **Decided 2026-11-09: hands move opposite the blade** (§4.1).
 - ~~Q5.~~ **Decided 2026-11-09: (a) toe follows the hands line when extended, with a blend knob, plus a telescoping two-piece shaft** (§10).
-- ~~Q4.~~ **Decided 2026-11-09: scroll down lifts the puck** (opens the forward face). That's how the game already behaves, so only the docs and comments changed.
-- **Q6.** _Open (the user, 2026-11-09):_ "we still need to tweak how the blade gets tilted when in backhand." The specifics haven't been discussed yet. Start by asking what feels wrong: the amount, the direction, or how it looks on the backhand. Current behavior is in §10.7.
+- ~~Q4.~~ **Decided 2026-11-09: scroll down lifts the puck** on the forehand (opens the forward face). Since Q6, the same roll lifts on the backhand with scroll up.
+- ~~Q6.~~ **Decided 2026-11-09: scroll tilt is a wrist roll** that stays with the blade, so a closed forehand becomes an open backhand (§10.8).
 
 ## 9. B2 implementation results (2026-11-09)
 
@@ -319,7 +319,27 @@ The user's verdict: "HUGE IMPROVEMENT, this is feeling really close to puck!" Tw
 - Pulled back on the backhand side, the shaft falls back to the default lie and crosses in front of you.
 - The heel gap blips to ~0.27 during fast pulled-back flips.
 - Misprediction hasn't been re-run at 110 ms.
-- Q4 (which scroll direction lifts) is still open.
+- Q4 (which scroll direction lifts) was still open at this point (since settled, see §7).
+
+### 10.8 Q6: scroll tilt is a wrist roll (decided 2026-11-09)
+
+**The user:** "blade tilt is good on the forehand side but should stay tilted that way, for example: say i scroll up to close tilt (deloft) and when i slide it over to backhand it should be open so the blade would lift the puck."
+
+- **What §10.7 did:** it re-applied the tilt to whichever face pointed forward. The forward face had the same tilt on both sides, so the blade rolled over (smoothly) as it crossed the middle.
+- **Decision:** the scroll tilt is a fixed roll of the blade around its long axis, like rolling your wrists in real hockey. It stays with the blade as it swings across. The blade turns around between forehand and backhand, so the same roll closes one side and opens the other:
+
+| Scroll | Forehand | Backhand |
+|---|---|---|
+| Up (bladeSteps +) | closed (deloft) | open (lifts) |
+| Down (bladeSteps −) | open (lifts) | closed |
+
+- **Code:** `alpha = -tilt` (no per-side sign). `TiltFlipWidth`, `tiltSign` and the face-switch blend from §10.7 were removed.
+- **Measured (target math, fresh module):**
+  - At ±4 steps, the forward face's normal is ±0.77 up (50°) at every lateral and depth, with the sign switching exactly where the blade turns around.
+  - The roll stays 50° relative to the blade everywhere (0.00° deviation).
+  - The largest blade turn per 0.02 of lateral is 17.9°. That's the pulled-back yaw spin alone; the tilt adds nothing.
+- **Q4 still stands** (scroll down lifts), but now only on the forehand. On the backhand, scroll up lifts.
+- **Not yet felt in play.** Needs a playtest.
 
 ## 8. Not in this step
 

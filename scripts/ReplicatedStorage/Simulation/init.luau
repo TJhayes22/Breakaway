@@ -26,7 +26,7 @@ export type SkaterInput = {
 	hardStop: boolean,
 	resetPuck: boolean,
 	aim: Vector2, -- X: arc position [-1, 1], Y: reach/lift [0, 1]
-	bladeSteps: number, -- integer, + = open face
+	bladeSteps: number, -- integer, + = forehand closed / backhand open (wrist roll)
 }
 
 export type SkaterRecord = {

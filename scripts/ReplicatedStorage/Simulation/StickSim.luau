@@ -51,10 +51,6 @@ local BLADE_YAW = {
 	-- no effect at or above PullBackStart, smooth in between.
 	PullBackFull = 0.15,
 	PullBackStart = 0.5,
-	-- Scroll tilt (STICK_DESIGN.md §10.7): the forward face keeps the same tilt on forehand
-	-- and backhand. The switch between faces eases in while the toe is within this angle of
-	-- straight ahead (blade nearest edge-on), so it rolls over smoothly as the blade turns.
-	TiltFlipWidth = math.rad(40),
 }
 
 local HEEL_LOCAL = Vector3.new(-C.BladeSize.X / 2, 0, 0)
@@ -133,7 +129,6 @@ export type BladeYaw = {
 	depth: number,
 	sideWeight: number, -- 0..1, how far into the side angle
 	pullBack: number, -- 0..1, how much pull-back straightening applies
-	tiltSign: number, -- -1..1: which face the scroll tilt applies to (follows the toe, §10.7)
 	modelToeYaw: number, -- the approved yaw model alone (§2), before the hands-line blend
 	lineYaw: number, -- direction from the hands to the blade target (§10.3)
 }
@@ -163,11 +158,6 @@ function StickSim.computeBladeYaw(aim: Vector2): BladeYaw
 	local toeYaw = modelToeYaw + lineWeight * diff
 	-- Forward face from the actual toe: forehand (toe right) faces toe - 90, backhand toe + 90.
 	faceYaw = toeYaw - (if toeYaw >= 0 then math.pi / 2 else -math.pi / 2)
-	-- Scroll tilt goes to whichever face is forward (STICK_DESIGN.md §10.7). Its switch
-	-- follows whatever drives the yaw: pulled back, the model's flip (the blade spins 180 deg
-	-- across it); extended, the toe passing straight ahead (the blade turns gradually).
-	local toeSign = 2 * smoothstep((toeYaw + Y.TiltFlipWidth) / (2 * Y.TiltFlipWidth)) - 1
-	local tiltSign = flip + lineWeight * (toeSign - flip)
 	return {
 		toeYaw = toeYaw,
 		faceYaw = faceYaw,
@@ -178,7 +168,6 @@ function StickSim.computeBladeYaw(aim: Vector2): BladeYaw
 		pullBack = pullBack,
 		modelToeYaw = modelToeYaw,
 		lineYaw = lineYaw,
-		tiltSign = tiltSign,
 	}
 end
 
@@ -188,13 +177,14 @@ function StickSim.computeTarget(rootPosition: Vector3, heading: number, aim: Vec
 
 	local blade = StickSim.computeBladeYaw(aim)
 
-	-- Face tilt (scroll) tilts whichever face is forward. With this frame, +X rotation tips
-	-- the +Z face down. Toe right (tiltSign > 0): -Z faces forward. tiltSign follows the
-	-- blade's actual toe, so the switch happens as the blade turns edge-on, not as a snap.
-	-- Sign set by playtest (2026-11-09: "should be inverted back to how it was"); flip the
-	-- leading minus to reverse the scroll direction.
+	-- Face tilt (scroll) is a wrist roll (STICK_DESIGN.md §10.8): a fixed roll around the
+	-- blade's long axis that stays with the blade as it swings between forehand and backhand,
+	-- like real hockey. With this frame, +X rotation tips the +Z face down. Forehand (toe
+	-- right): -Z faces forward, so bladeSteps > 0 (scroll up) closes it; on the backhand the
+	-- blade has turned around, +Z faces forward, and the same roll opens it. Scroll down is
+	-- the reverse: forehand open, backhand closed. Flip the leading minus to reverse scroll.
 	local tilt = bladeSteps * C.BladeAngleStep
-	local alpha = -tilt * blade.tiltSign
+	local alpha = -tilt
 
 	-- Keep the lowest edge of the (possibly tilted) blade just above the ice.
 	local halfExtent = 0.5 * (C.BladeSize.Y * math.cos(alpha) + C.BladeSize.Z * math.abs(math.sin(alpha)))
