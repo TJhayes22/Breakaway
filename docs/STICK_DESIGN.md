@@ -1,6 +1,6 @@
 # Stick Design
 
-_Living design doc for the hockey stick. Last updated 2026-11-09 (Milestone 0b, part 1)._
+_Living design doc for the hockey stick. Last updated 2026-11-09 (Milestone 0b, part 1: complete after §10.7)._
 
 This doc records what we've **decided** about the stick and what's still **open**, so changes start from an agreed plan instead of trial and error. Rule going forward: anything that changes what's physical, what collides, or how a system works gets written here and agreed **before** code changes. Feel tuning (numbers) can happen directly.
 
@@ -19,14 +19,14 @@ This doc records what we've **decided** about the stick and what's still **open*
 
 | Topic | Decision | Where |
 |---|---|---|
-| Handedness | **Right shot.** Forehand is the right side and gets the wider arc (58° right, 48° left). | `Config.Stick.Handedness`, `ArcRight/ArcLeft` |
+| Handedness | **Right shot.** Forehand is the right side. Arc is **58° both ways** (left was 48°; widened 2026-11-09: "move the whole stick more to the left like the forehand side"). | `Config.Stick.Handedness`, `ArcRight/ArcLeft` |
 | Blade yaw model | From the Puck video. The toe always points away from the middle. **Right of middle:** forehand faces forward. **Left of middle:** backhand faces forward. Crossing the middle, the blade **rotates smoothly** through toe-forward. | `StickSim.computeBladeYaw` |
 | Face angle at the sides | Forward face turns **inward** (toward center), up to **30°** at full side reach. | `BLADE_YAW.SideMax` |
 | Flip width | The flip happens across lateral −0.15 … +0.15. | `BLADE_YAW.FlipWidth` |
 | Pulled back | The blade squares up (face straight ahead), based on depth only, on both sides. | `BLADE_YAW.PullBackFull/Start` |
 | Closest blade distance | **2.3 studs** in front of the body (was 3.3). Fully pulled back, the blade sits at the bottom edge of the screen. | `MinBladeForward`, `ReachMin` |
 | Stick sensitivity | **0.0018** aim units per pixel (was 0.0028). | `Config.Input` |
-| Scroll tilt | Tilts whichever face is forward, in 12.5° steps, ±4 steps. Direction set by playtest: scroll up tilts the forward face **down**. ⚠ See open question Q4. | `StickSim` (`alpha` sign) |
+| Scroll tilt | Tilts whichever face is forward, in 12.5° steps, ±4 steps: the same tilt on forehand and backhand. The switch between faces follows the blade's actual turn, so it rolls over smoothly as the toe passes straight ahead (§10.7). Direction set by playtest: scroll up tilts the forward face **down**. ⚠ See open question Q4. | `StickSim` (`tiltSign`, `BLADE_YAW.TiltFlipWidth`) |
 | Lift | Past `LiftStart` the stick swings up around the hands like a baseball bat, toe first, up to 55°. | `LiftPitchMax` |
 | Shaft is physical | The shaft collides with the puck and other sticks, never with skaters, ice or boards. (A visual-only shaft was tried and **rejected**, 2026-11-09.) | collision group `Shafts` |
 | Drive method | The stick is moved by setting its velocities in the simulation, not by constraints. Constraints mispredicted in Milestone 0. | `Config.Stick.DriveMode = "Velocity"` |
@@ -235,7 +235,7 @@ Then **one** feel playtest by you.
   - At extended diagonals the forward face turns ~50° inward (was ~11°), so shots from there go more across the body.
   - **The forehand/backhand flip gets more gradual when extended.** The hands line only crosses straight-ahead slowly as the blade moves across. Around center the toe points mostly forward and the face looks sideways over a wider range than the snappy ±0.15 flip. Pulled back, the flip is unchanged.
   - This is the geometric price of an in-line shaft that reaches the hands. A lower blend trades connection back for the snappier flip.
-- **Scroll tilt:** still uses the lateral-based `flip` value for its sign, so the scroll behavior doesn't change.
+- **Scroll tilt:** at first this still used the lateral-based `flip` value for its sign. With the gradual toe, that made the blade snap-roll in the middle; fixed in §10.7.
 
 ### 10.4 Fix 2: telescoping shaft
 
@@ -285,6 +285,40 @@ Collision setup verified: blade, shaft and handle all hit the puck and ignore sk
 - Possible follow-ups, to decide after the playtest:
   - let the hands-line blend act partly even when pulled back
   - pick a better fallback direction
+
+### 10.7 Final tweaks from the playtest (2026-11-09)
+
+The user's verdict: "HUGE IMPROVEMENT, this is feeling really close to puck!" Two tweaks, then this stage is complete.
+
+1. **Backhand reach:** `ArcLeft` goes from 48° to **58°**, matching the forehand.
+2. **Tilt bug:** "when our blade is tilted a lot, moving to backhand auto tilts it, but the tilt should remain the same."
+   - **Cause:** the tilt's sign switched faces across lateral ±0.15. That matched the old yaw, which spun the blade 180° in the same band. With the toe following the hands, the blade only turns ~15–20° in that band, so the blade visibly snap-rolled from leaning one way to the other.
+   - **Decision (the user):** the forward face keeps the same tilt on both sides. The switch happens smoothly as the blade turns, not as a snap.
+   - **Fix:** the tilt's face switch follows whatever drives the yaw, using the same blend weight as §10.3.
+     - **Extended:** it follows the blade's actual toe. It eases from full forehand tilt to full backhand tilt while the toe is within `TiltFlipWidth` (**±40°**) of straight ahead.
+     - **Pulled back:** it uses the old lateral switch, which matches the blade's fast 180° spin there.
+     - Both faces get the full tilt everywhere outside the middle (forward face pitch −50° at 4 steps, at lateral ±0.5 and ±1, at every depth).
+   - **Measured:** the most the blade turns per 0.02 of lateral, at full tilt:
+
+| Depth (aim.Y) | Old tilt switch | New | Yaw alone, no tilt |
+|---|---|---|---|
+| 0.8 (max reach) | 10.1° | **3.4°** | 1.6° |
+| 0.45 | ~10° | **3.7°** | 1.8° |
+| 0.3 | 11.9° | 13.1° | 6.5° |
+| 0.2 | ~20° | 19.8° | 14.7° |
+| 0.05 (pulled back) | 20.4° | 20.4° | 17.9° |
+
+   - A ±25° window was tried first. It made the pulled-back flip much worse (48° in one step), because the roll got squeezed into a small part of the spin.
+3. **Checks after both tweaks:**
+   - Far left at max reach, the blade sits 23% across the screen, mirroring 77% on the right; fully on screen at every depth.
+   - Extended shaft-to-hands miss is still 0.000 across the aim grid with the blade tilted 4 steps. It sticks out ≤ 0.4 past the hands, and the pieces always overlap.
+   - 0 mispredictions in 6 s of tilted sweeps and flips.
+
+**Part 1 (stick orientation, shaft, hands) is complete.** Known leftovers carried forward:
+- Pulled back on the backhand side, the shaft falls back to the default lie and crosses in front of you.
+- The heel gap blips to ~0.27 during fast pulled-back flips.
+- Misprediction hasn't been re-run at 110 ms.
+- Q4 (which scroll direction lifts) is still open.
 
 ## 8. Not in this step
 

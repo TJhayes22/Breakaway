@@ -32,8 +32,9 @@ Config.Stick = {
 	-- Aim arc (radians from straight ahead; positive = to the player's right).
 	-- Kept inside the default camera view so the blade never leaves the screen
 	-- (was 80/55 deg, which went out of frame; M0 playtest).
-	-- The forehand side (right, for a right shot) gets the wider arc.
-	ArcLeft = math.rad(48),
+	-- Was 48 on the left (forehand wider); matched to the right 2026-11-09 playtest ("move
+	-- the whole stick more to the left like the right forehand side").
+	ArcLeft = math.rad(58),
 	ArcRight = math.rad(58),
 	ReachMin = 2.3, -- blade distance from body center. Was 2.6; pulled back ~1 stud closer with MinBladeForward (2026-11-09 playtest)
 	ReachMax = 6.5,
