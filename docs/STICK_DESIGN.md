@@ -339,7 +339,12 @@ The user's verdict: "HUGE IMPROVEMENT, this is feeling really close to puck!" Tw
   - The roll stays 50° relative to the blade everywhere (0.00° deviation).
   - The largest blade turn per 0.02 of lateral is 17.9°. That's the pulled-back yaw spin alone; the tilt adds nothing.
 - **Q4 still stands** (scroll down lifts), but now only on the forehand. On the backhand, scroll up lifts.
-- **Not yet felt in play.** Needs a playtest.
+- **Playtest (the user):** "awesome feels great."
+- **Follow-up, the shaft rolls too:** the user noticed the two shaft pieces didn't turn with the blade's tilt.
+  - Both pieces now roll around their own long axis to line up with the blade's face. Their up vector is the blade's face normal, projected square to the shaft line.
+  - Position and direction are unchanged: a 0.00000 difference across the aim grid at every tilt. Untilted, the pose is the same as before (≤ 0.03°).
+  - The cross-section is square, so collisions are effectively unchanged.
+  - At ±4 steps the shaft rolls 42–45°, a bit less than the blade's 50°, because the shaft leans at the lie angle instead of lining up with the blade's long axis.
 
 ## 8. Not in this step
 

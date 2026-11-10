@@ -85,9 +85,8 @@ end
 
 -- Shaft poses for a blade pose (STICK_DESIGN.md §10.4: telescoping shaft). Both pieces lie
 -- on one line that starts at the heel and stays in the vertical plane through the blade's
--- long axis (so it follows the blade's direction and lift, but not the scroll tilt, which
--- turns the blade around its own long axis); within that plane it points as close to the
--- hands as it can. The lower shaft starts at the heel; the handle (grip) ends ButtOverhang
+-- long axis (so it follows the blade's direction and lift; the scroll tilt only rolls the
+-- pieces around that line); within that plane it points as close to the hands as it can. The lower shaft starts at the heel; the handle (grip) ends ButtOverhang
 -- past the hands. They overlap more the closer the blade is to the hands.
 -- Returns the two center CFrames, LookVector running from the heel toward the butt.
 function StickSim.shaftTargets(bladeCF: CFrame, hands: Vector3): (CFrame, CFrame)
@@ -103,14 +102,19 @@ function StickSim.shaftTargets(bladeCF: CFrame, hands: Vector3): (CFrame, CFrame
 		-- Hands ahead of the heel (shouldn't happen in play): fall back to the default lie.
 		dir = (-bladeCF.XVector * math.cos(C.LieAngle) + bladeCF.YVector * math.sin(C.LieAngle)).Unit
 	end
+	-- Roll: both pieces turn around their own long axis with the blade's scroll tilt (the
+	-- wrist roll, §10.8), like a real stick turning in the hands. Their line doesn't move.
+	-- Untilted, the blade's face normal equals `normal`, so this matches the old pose.
+	local up = bladeCF.ZVector - dir * bladeCF.ZVector:Dot(dir)
+	up = if up.Magnitude > 1e-3 then up.Unit else normal
 	local L = C.ShaftLength
-	local shaftCF = CFrame.lookAt(heel + dir * (L / 2), heel + dir * L, normal)
+	local shaftCF = CFrame.lookAt(heel + dir * (L / 2), heel + dir * L, up)
 	-- Handle: butt end ButtOverhang past the point on the line nearest the hands, never
 	-- reaching below the heel.
 	local G = C.GripLength
 	local butt = math.max((hands - heel):Dot(dir), 0) + C.ButtOverhang
 	local gripCenter = heel + dir * (math.max(butt - G, 0) + G / 2)
-	local gripCF = CFrame.lookAt(gripCenter, gripCenter + dir, normal)
+	local gripCF = CFrame.lookAt(gripCenter, gripCenter + dir, up)
 	return shaftCF, gripCF
 end
 
